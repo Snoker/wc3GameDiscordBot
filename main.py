@@ -36,6 +36,10 @@ async def send_message(channel_id, message):
 @client.event
 async def on_ready():
     message = None
+    msgSent = 0
+    previousGameId = 0
+    # previousMsgOverwritten = 0
+    # previousMsg = ''
     while 1 == 1:
         baseUrl = 'https://api.wc3stats.com'
         endpoint = '/gamelist'
@@ -44,24 +48,40 @@ async def on_ready():
         r = r.json()
         body = r['body']
         #go through the list of games and add the gameids to a list if the game[map] contains the string bfme
+        bodyLen = len(body)
+        gamesChecked = 0
+        bfmeGameCounter = 0
+        print(bodyLen)
         for game in body:
+            gamesChecked = gamesChecked + 1
             if 'bfme' in game['map'].lower():
-                
+                bfmeGameCounter = 1
                 print(listOfGameIds)
                 print(game['id'])
+                print(f'Previous: {previousGameId}, Current: {game['id'] }')
+                if previousGameId != game['id'] and message is not None:
+                    await message.edit(content=f"{previousMsg}  - Game Started/Removed")
+                    message = None
+                    msgSent = 0
+                    print('message set to None')
+
                 if game['id'] not in listOfGameIds:# and message == None:
+                    currentGameId = game['id']
+                    previousGameId = currentGameId
                     listOfGameIds.append(game['id'])
                     if message is None:
+                        print('I send message.')
                         message = await send_message(channelId, f"Gamename: {game['name']} - Server: {game['server']} - Slots: {game['slotsTaken']}/{game['slotsTotal']}")
-                elif game['id'] in listOfGameIds and message is not None:
+                elif game['id'] in listOfGameIds and message is not None and msgSent == 0:
+                    print('I edit message.')
                     await message.edit(content=f"Gamename: {game['name']} - Server: {game['server']} - Slots: {game['slotsTaken']}/{game['slotsTotal']}")
-                elif message is not None:
-                    await message.edit(content=f"{message} (STARTED/REMOVED)")
-                    message = None
-                    print('message set to None')
-                print(message)
-                print(f"Gamename: {game['name']} - Server: {game['server']} - Slots: {game['slotsTaken']}/{game['slotsTotal']}")
-        await run_blockerFunc(blockerFunc, 30) 
+                    previousMsg = f"Gamename: {game['name']} - Server: {game['server']} - Slots: {game['slotsTaken']}/{game['slotsTotal']}"
+            if gamesChecked == bodyLen and bfmeGameCounter == 0 and message is not None:
+                await message.edit(content=f"{previousMsg}  - Game Started/Removed")
+                message = None
+                msgSent = 0
+                print('message set to None')
+        await run_blockerFunc(blockerFunc, 10) 
         
 
 
