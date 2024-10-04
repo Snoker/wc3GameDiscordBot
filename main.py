@@ -46,7 +46,7 @@ async def on_ready():
         #go through the list of games and add the gameids to a list if the game[map] contains the string bfme
         for game in body:
             if 'bfme' in game['map'].lower():
-                print(message)
+                
                 print(listOfGameIds)
                 print(game['id'])
                 if game['id'] not in listOfGameIds:# and message == None:
@@ -58,6 +58,8 @@ async def on_ready():
                 elif message is not None:
                     await message.edit(content=f"{message} (STARTED/REMOVED)")
                     message = None
+                    print('message set to None')
+                print(message)
                 print(f"Gamename: {game['name']} - Server: {game['server']} - Slots: {game['slotsTaken']}/{game['slotsTotal']}")
         await run_blockerFunc(blockerFunc, 30) 
         
