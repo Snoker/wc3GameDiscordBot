@@ -81,7 +81,7 @@ async def on_ready():
                 message = None
                 msgSent = 0
                 print('message set to None')
-        await run_blockerFunc(blockerFunc, 10) 
+        await run_blockerFunc(blockerFunc, 45) 
         
 
 
