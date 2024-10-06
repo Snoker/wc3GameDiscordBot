@@ -33,8 +33,8 @@ def validate_game_data(game_data):
 def create_embed_fields(game_data):
     return [
         {"name": "Server", "value": game_data['server'], "inline": True},
-        {"name": "Map", "value": game_data['map'], "inline": True},
-        {"name": "Slots", "value": f"{game_data['slotsTaken']}/{game_data['slotsTotal']}", "inline": True}
+        {"name": "Map", "value": game_data['map'], "inline": False},
+        {"name": "Slots", "value": f"{game_data['slotsTaken']}/{game_data['slotsTotal']}", "inline": False}
     ]
 
 def create_new_embed(game_data):
@@ -107,8 +107,9 @@ async def on_ready():
                 channel = client.get_channel(channelId)
                 message = await channel.fetch_message(messageId)
                 msgEmbed = gameMessageDict[missingGameId]["embed"]
+                msgEmbed.color = 0x808080
                 await message.edit(content="~~Game Started/Removed~~",embed=msgEmbed)
                 gameMessageDict.pop(missingGameId)
-        await run_blockerFunc(blockerFunc, 45) 
+        await run_blockerFunc(blockerFunc, 3) 
 
 client.run(discordAPIKey)
