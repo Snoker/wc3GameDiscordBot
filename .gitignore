@@ -1,5 +1,9 @@
 #config secret files
 configSecret.json
+configSecret_wc3bot.json
+configSecret_test.json
+testData.json
+test.py
 
 
 # Byte-compiled / optimized / DLL files

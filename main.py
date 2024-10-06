@@ -15,11 +15,6 @@ with open('config.json') as f:
     configData = json.load(f)
 channelId = configData['channelId']
 
-client = discord.Client(intents=discord.Intents.default())
-guild = discord.Guild
-
-listOfGameIds = []
-
 def blockerFunc(secondsToBlock):
     time.sleep(secondsToBlock)
     return True
@@ -31,59 +26,89 @@ async def send_message(channel_id, message):
     channel = client.get_channel(channel_id)
     return await channel.send(message)
 
+def validate_game_data(game_data):
+    required_keys = ['name', 'host', 'server', 'map', 'slotsTaken', 'slotsTotal']
+    return all(key in game_data for key in required_keys)
+
+def create_embed_fields(game_data):
+    return [
+        {"name": "Server", "value": game_data['server'], "inline": True},
+        {"name": "Map", "value": game_data['map'], "inline": True},
+        {"name": "Slots", "value": f"{game_data['slotsTaken']}/{game_data['slotsTotal']}", "inline": True}
+    ]
+
+def create_new_embed(game_data):
+    if not validate_game_data(game_data):
+        return None
+    
+    embed = discord.Embed(
+            color=0x1abc9c,
+            title=game_data['name'],
+            url="https://wc3bfme.net/index.php?forums/frontpage/"
+        )
+        
+    fields = create_embed_fields(game_data)
+    for field in fields:
+        embed.add_field(name=field['name'], value=field['value'], inline=field['inline'])
+
+    embed.set_footer(text="Powered by https://wc3stats.com")
+    embed.set_author(name=game_data['host'])
+
+    return embed
+
+
+
+
+client = discord.Client(intents=discord.Intents.default())
+guild = discord.Guild
+listOfGameIds = []
+gameMessageDict = {}
 
 
 @client.event
 async def on_ready():
     message = None
-    msgSent = 0
-    previousGameId = 0
-    # previousMsgOverwritten = 0
-    # previousMsg = ''
     while 1 == 1:
         baseUrl = 'https://api.wc3stats.com'
         endpoint = '/gamelist'
         url = baseUrl + endpoint
         r = re.get(url = url)
         r = r.json()
+        # with open('testData.json') as f:
+        #     testData = json.load(f)
+        # r = testData
         body = r['body']
-        #go through the list of games and add the gameids to a list if the game[map] contains the string bfme
-        bodyLen = len(body)
-        gamesChecked = 0
-        bfmeGameCounter = 0
-        print(bodyLen)
+        allGameIds = [game['id'] for game in body]
         for game in body:
-            gamesChecked = gamesChecked + 1
             if 'bfme' in game['map'].lower():
-                bfmeGameCounter = 1
-                print(listOfGameIds)
-                print(game['id'])
-                print(f'Previous: {previousGameId}, Current: {game['id'] }')
-                if previousGameId != game['id'] and message is not None:
-                    await message.edit(content=f"{previousMsg}  - Game Started/Removed")
-                    message = None
-                    msgSent = 0
-                    print('message set to None')
-
-                if game['id'] not in listOfGameIds:# and message == None:
-                    currentGameId = game['id']
-                    previousGameId = currentGameId
-                    listOfGameIds.append(game['id'])
-                    if message is None:
-                        print('I send message.')
-                        message = await send_message(channelId, f"Gamename: {game['name']} - Server: {game['server']} - Slots: {game['slotsTaken']}/{game['slotsTotal']}")
-                elif game['id'] in listOfGameIds and message is not None and msgSent == 0:
+                gameId = game['id']
+                if gameId not in listOfGameIds:
+                    print('I send message.')
+                    listOfGameIds.append(gameId)
+                    msgEmbed = create_new_embed(game)
+                    channel = client.get_channel(channelId)
+                    message = await channel.send(embed=msgEmbed)
+                    gameMessageDict[gameId] = {
+                        "messageId": message.id,
+                        "embed": msgEmbed
+                    }
+                elif gameId in gameMessageDict:
                     print('I edit message.')
-                    await message.edit(content=f"Gamename: {game['name']} - Server: {game['server']} - Slots: {game['slotsTaken']}/{game['slotsTotal']}")
-                    previousMsg = f"Gamename: {game['name']} - Server: {game['server']} - Slots: {game['slotsTaken']}/{game['slotsTotal']}"
-            if gamesChecked == bodyLen and bfmeGameCounter == 0 and message is not None:
-                await message.edit(content=f"{previousMsg}  - Game Started/Removed")
-                message = None
-                msgSent = 0
-                print('message set to None')
+                    messageId = gameMessageDict[game['id']]["messageId"]
+                    channel = client.get_channel(channelId)
+                    message = await channel.fetch_message(messageId)
+                    msgEmbed = create_new_embed(game)
+                    await message.edit(embed=msgEmbed)
+                    gameMessageDict[gameId]["embed"] = msgEmbed
+            missingGameIds = [game_id for game_id in gameMessageDict if game_id not in allGameIds]
+            for missingGameId in missingGameIds:
+                print('I remove message.')
+                messageId = gameMessageDict[missingGameId]["messageId"]
+                channel = client.get_channel(channelId)
+                message = await channel.fetch_message(messageId)
+                msgEmbed = gameMessageDict[missingGameId]["embed"]
+                await message.edit(content="~~Game Started/Removed~~",embed=msgEmbed)
+                gameMessageDict.pop(missingGameId)
         await run_blockerFunc(blockerFunc, 45) 
-        
-
-
 
 client.run(discordAPIKey)
